@@ -2,7 +2,11 @@
 from rflink.parser import PACKET_FIELDS, UNITS
 import voluptuous as vol
 
-from homeassistant.components.sensor import PLATFORM_SCHEMA, SensorEntity
+from homeassistant.components.sensor import (
+    PLATFORM_SCHEMA,
+    STATE_CLASSES_SCHEMA,
+    SensorEntity,
+)
 from homeassistant.const import (
     ATTR_UNIT_OF_MEASUREMENT,
     CONF_DEVICES,
@@ -32,6 +36,7 @@ SENSOR_ICONS = {
     "battery": "mdi:battery",
     "temperature": "mdi:thermometer",
 }
+CONF_STATE_CLASS = "state_class"
 
 PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
     {
@@ -45,6 +50,7 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
                     vol.Optional(CONF_ALIASES, default=[]): vol.All(
                         cv.ensure_list, [cv.string]
                     ),
+                    vol.Optional(CONF_STATE_CLASS): STATE_CLASSES_SCHEMA,
                 }
             )
         },
@@ -89,6 +95,7 @@ async def async_setup_platform(hass, config, async_add_entities, discovery_info=
             device_id,
             event[EVENT_KEY_SENSOR],
             event[EVENT_KEY_UNIT],
+            None,
             initial_event=event,
         )
         # Add device entity
@@ -102,11 +109,18 @@ class RflinkSensor(RflinkDevice, SensorEntity):
     """Representation of a Rflink sensor."""
 
     def __init__(
-        self, device_id, sensor_type, unit_of_measurement, initial_event=None, **kwargs
+        self,
+        device_id,
+        sensor_type,
+        unit_of_measurement,
+        state_class,
+        initial_event=None,
+        **kwargs,
     ):
         """Handle sensor specific args and super init."""
         self._sensor_type = sensor_type
-        self._unit_of_measurement = unit_of_measurement
+        self._attr_unit_of_measurement = unit_of_measurement
+        self._attr_state_class = state_class
         super().__init__(device_id, initial_event=initial_event, **kwargs)
 
     def _handle_event(self, event):
@@ -150,11 +164,6 @@ class RflinkSensor(RflinkDevice, SensorEntity):
         # Process the initial event now that the entity is created
         if self._initial_event:
             self.handle_event_callback(self._initial_event)
-
-    @property
-    def unit_of_measurement(self):
-        """Return measurement unit."""
-        return self._unit_of_measurement
 
     @property
     def state(self):
